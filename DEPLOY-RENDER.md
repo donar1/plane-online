@@ -67,7 +67,20 @@ git push -u origin main
 3. 选难度建房，记下房间码；手机或另一台电脑打开同一地址输入房间码加入
 4. 双方各摆飞机 → 准备 → 开战，验证 WebSocket 正常
 
-## 三、免费层的三个限制（心里有数就行）
+## 三、只用 Gitee 也可以（可选）
+
+你的 git 身份配的是 Gitee（`donar2026`）。Render 的账号授权只支持 GitHub / GitLab / Bitbucket，连不了 Gitee，但可以走「公开仓库地址」这条路：
+
+1. 在 Gitee 建仓库并把本项目设为**公开**（私有仓库 Render 无法匿名克隆）
+2. 推送：`git remote add origin https://gitee.com/donar2026/plane-online.git` → `git push -u origin main`
+3. Render 控制台 **New → Web Service → Public Git Repository**，填 `https://gitee.com/donar2026/plane-online.git`
+4. 后续 Build / Start / Region / Instance Type 照第二部分的表填
+
+代价：这种方式 Render **不支持自动部署和 PR 预览**，以后改了代码要手动点 `Manual Deploy`。想要"一推就自动部署"，还是得用 GitHub。
+
+另外注意：`render.yaml` 蓝图只在连接 Git 账号时生效；走 Public Git Repository 时需要在页面里手动填上面那张表的设置。
+
+## 四、免费层的三个限制（心里有数就行）
 
 | 限制 | 实际影响 |
 | --- | --- |
@@ -77,7 +90,7 @@ git push -u origin main
 
 内存给 512 MB，这个项目常驻只占几十 MB，够用。
 
-## 四、排错
+## 五、排错
 
 - **构建失败**：在 Render 服务页的 Logs 看 `npm install` 的报错，多数是 `package-lock.json` 与依赖版本不一致，重新 `npm install` 生成锁文件再提交即可
 - **502 / 一直转圈**：多半在冷启动，等 1 分钟；还是不行看 Logs 里有没有 `EADDRINUSE` 或启动异常
