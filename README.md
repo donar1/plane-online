@@ -50,9 +50,13 @@ $env:DEPLOY_SECONDS=30; node server.js
 | `PORT` | 3000 | 服务端口 |
 | `DEPLOY_SECONDS` | 60 | 布阵倒计时秒数 |
 
-## 部署到公网
+## 在线体验（已上线）
 
-想让朋友不连你家 WiFi 也能玩，按 [`DEPLOY-RENDER.md`](DEPLOY-RENDER.md) 部署到 Render 免费层（仓库里已备好 `render.yaml`，三步点完即可）。
+**https://modelscope.cn/studios/summen/plane-online**
+
+部署在魔搭创空间（ModelScope Studio），Docker 免费 CPU 资源，无需信用卡，直接把链接发给朋友即可开局。
+
+部署细节见 [`DEPLOY-MODELSCOPE.md`](DEPLOY-MODELSCOPE.md)（含端口 7860 适配、休眠策略、WebSocket 实测结论）。Render 备选路线见 [`DEPLOY-RENDER.md`](DEPLOY-RENDER.md)。
 
 ## 怎么玩
 

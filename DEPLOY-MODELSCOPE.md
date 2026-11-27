@@ -1,6 +1,20 @@
 # 部署到魔搭创空间（ModelScope Studio）
 
-魔搭创空间支持 Docker 类型部署，**CPU 资源完全免费**，不需要信用卡。但要先知道它的两条硬性规则和一个待验证点。
+**已部署成功并实测可对战。** 访问地址：https://modelscope.cn/studios/summen/plane-online
+
+## 零、当前状态（2026-11-27）
+
+| 项 | 结果 |
+| --- | --- |
+| 创空间 | `summen/plane-online`，默认分支 `master`，提交 `a133348` |
+| SDK 类型 | `docker`，关联云资源「免费CPU，按需分配 / 2v CPU / 8G内存」 |
+| 监听端口 | `7860`（页面字段值即是，Dockerfile 里 `ENV PORT=7860` 对齐） |
+| 休眠时间 | 设为 `24 小时`（可选 10 分钟～1 周 / 不休眠） |
+| 构建 | 从提交到「运行中」约 3 分钟，首次构建日志显示 `创空间构建-香港-linux/amd64` |
+| HTTP | 页面正常渲染，难度选择、创建房间 UI 齐全 |
+| **WebSocket** | **可用** —— 建房成功返回 `room_created`（房间 SJ5VK8、4 架），并持续收到 `state` 帧 |
+
+WebSocket 的一个实测坑（重要）：网关会**按 User-Agent 拦截非浏览器客户端**。用纯脚本（默认 UA）直连 `wss://summen-plane-online.ms.show/` 会拿到 `403`；带上浏览器 UA 后立即连通。也就是说浏览器里玩没问题，但**别用裸脚本做自动化对战联调**，脚本要伪装 UA。
 
 ## 一、平台硬性规则（决定了能不能跑）
 
@@ -11,7 +25,7 @@
 | `Authorization`、`X-modelscope-*`、`X-studio-*` 请求头被平台占用 | 我们没有用这些头 |
 | 低频时段/少人访问会自动休眠 | 和 Render 类似，开局时唤醒 |
 
-**待验证点**：魔搭官方文档只规定了端口和绑定地址，**没有明确写反向代理是否透传 WebSocket 升级请求**。所以能不能玩，最终取决于部署后实测。`Dockerfile` 和端口都已按它的要求配好，剩下的是验证。
+**WebSocket（已回答）**：官方文档只规定端口和绑定地址，没写反向代理是否透传升级请求。实测结论是**可以透传**，但会按 User-Agent 拦非浏览器客户端（细节见上一节）。
 
 ## 二、已经准备好的文件
 
@@ -37,29 +51,34 @@
 3. 填写基本信息：
    - 空间名称：`plane-online`
    - 可见性：公开 / 私有都行（要给别人玩就选公开）
-   - **SDK 类型选 `Docker`**
-4. 上传文件：把以下 4 个推上去（可以直接用「从 Git 仓库导入」指向 `https://github.com/donar1/plane-online`，或用网页上传）
-   - `Dockerfile`
-   - `server.js`
-   - `package.json`
-   - `package-lock.json`
-   - `public/index.html`
-5. 资源配置选 **免费 CPU**（2 vCPU / 16GB 内存的免费档）
-6. 端口填 **7860**（Docker 类型必填，且只能是这个值）
-7. 提交部署，等构建完成
+   - License：`MIT License`（创空间生成的 README 元信息里已有，不用改）
+4. 推代码到创空间仓库（推荐，本项目就是这么做的）：
+   - 在「空间文件 → 通过Git上传」里复制完整 clone 地址（带 token，务必用复制按钮，截图容易截断）
+   - 本地克隆 → 把 `Dockerfile`、`.dockerignore`、`server.js`、`package.json`、`package-lock.json`、`public/` 放进去
+   - **保留创空间生成的 README 元信息块**（`license` / `tags` 等），只替换正文，否则空间配置会丢
+   - `git push origin master`（创空间默认分支是 `master` 不是 `main`）
+5. 「下一步：部署设置」→ 框架选 **docker**，云资源选 **免费CPU，按需分配 / 2v CPU / 8G内存**
+6. 监听端口填 **7860**；休眠时间选 **24 小时**
+7. 「确认并部署」→ 约 3 分钟变成「运行中」
 
 部署成功后会拿到两个地址：
 
 - `https://modelscope.cn/studios/<你的用户名>/plane-online`
 - `https://<用户名>-plane-online.ms.show` ← **优先用这个**，它是独立域名，客户端会用 `wss://` 连，路径也更干净
 
-## 四、部署后必须验证的一件事
+## 四、WebSocket 实测记录
 
-打开页面看到「✈️ 打飞机 · 联机对战」只说明 HTTP 通了，**WebSocket 才是关键**。两种验证方式：
+| 探测方式 | 结果 |
+| --- | --- |
+| `wss://summen-plane-online.ms.show/`（Node 默认 UA） | `403` 拒绝升级 |
+| 同上 + `studio_token` 查询参数 | `403` |
+| 同上 + `Origin: https://www.modelscope.cn` | `403` |
+| 同上 + 浏览器 User-Agent | **连通**，收到 `room_created` 与后续 `state` |
+| 浏览器里实际点击「创建房间」 | 正常出房间码，可对战 |
 
-**方式一（推荐，让我来跑）**：把 `.ms.show` 地址发我，我用 Node 客户端从本机连 `wss://<地址>` 发一次建房请求，能收到 `room_created` 就说明平台透传了 WS，可以直接开玩。
+结论：网关不靠 token 鉴权，而是按 User-Agent 过滤非浏览器客户端。浏览器玩没问题；写自动化脚本联调时必须伪装 UA。
 
-**方式二（自己看）**：浏览器打开页面 → 按 F12 → Console → 点「创建房间」。如果出现房间码，说明 WS 正常；如果刷 `WebSocket connection failed` 或一直转圈，就是代理没透传 WS。
+另外注意：直接访问 `https://summen-plane-online.ms.show` 现在会 302 到 `https://www.modelscope.cn/studios/summen/plane-online?mode=full` 的 iframe 外壳页。**发给朋友的链接用站内地址**，不要用 .ms.show。
 
 ## 五、如果 WS 不通怎么办
 
