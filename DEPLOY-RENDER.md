@@ -2,6 +2,16 @@
 
 我在仓库里已经把 Render 需要的东西都配好了，你只需要在网页上做三件事：**建 GitHub 仓库 → 推送代码 → 在 Render 点部署**。
 
+## 当前状态（2026-11-27 已就绪）
+
+| 项 | 状态 |
+| --- | --- |
+| GitHub 仓库 | https://github.com/donar1/plane-online（公开，默认分支 `main`） |
+| 代码推送 | 已完成，提交 `8157848`，`node_modules/` 与日志已排除 |
+| 一键部署入口 | https://render.com/deploy?repo=https://github.com/donar1/plane-online |
+
+也就是说，**下面的步骤 1、2 已经做完了**，你只剩“在 Render 注册登录 → 点上面的链接 → Apply”这一步。
+
 ## 一、我已经准备好的
 
 | 文件 | 作用 |
