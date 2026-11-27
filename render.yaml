@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: plane-online
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm install --no-audit --no-fund
+    startCommand: node server.js
+    autoDeploy: true
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DEPLOY_SECONDS
+        value: "60"

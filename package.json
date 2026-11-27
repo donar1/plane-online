@@ -1,0 +1,13 @@
+{
+  "name": "plane-online",
+  "version": "1.0.0",
+  "private": true,
+  "description": "打飞机双人联机对战",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>✈️ 打飞机 · 联机对战</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+html{-webkit-text-size-adjust:100%;}
+body{
+  font-family:'Segoe UI','Microsoft YaHei','PingFang SC',sans-serif;
+  background:radial-gradient(ellipse at top,#1a1a3e 0%,#0f0f1e 100%);
+  color:#e0e0e0;min-height:100vh;min-height:100dvh;
+  padding:max(10px,env(safe-area-inset-top)) max(10px,env(safe-area-inset-right)) max(16px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));
+  touch-action:manipulation;-webkit-tap-highlight-color:transparent;
+  display:flex;flex-direction:column;align-items:center;
+}
+header{width:100%;max-width:900px;text-align:center;margin-bottom:12px;}
+h1{font-size:clamp(18px,4.5vw,24px);color:#f0c040;margin-bottom:8px;text-shadow:0 2px 12px rgba(240,192,64,.4);}
+.status-bar{
+  display:flex;gap:8px;flex-wrap:wrap;justify-content:center;align-items:center;
+  background:#16213e;border:1px solid #0f3460;border-radius:10px;
+  padding:8px 14px;font-size:13px;
+}
+.status-item{color:#888;}
+.status-item b{color:#f0c040;margin-left:4px;}
+.status-timer{
+  background:#0d1117;border:2px solid #2a9d8f;color:#2a9d8f;
+  padding:3px 14px;border-radius:20px;font-weight:bold;font-size:14px;
+  min-width:100px;text-align:center;transition:all .2s;
+}
+.status-timer.warn{border-color:#f0c040;color:#f0c040;}
+.status-timer.danger{border-color:#e63946;color:#e63946;animation:pulse .6s infinite;}
+@keyframes pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+.boards{display:flex;gap:18px;justify-content:center;align-items:flex-start;flex-wrap:wrap;width:100%;max-width:900px;}
+.board-panel{
+  background:#16213e;border:1px solid #0f3460;border-radius:12px;
+  padding:12px;position:relative;
+  width:min(44vw,400px);min-width:300px;
+  box-shadow:0 4px 24px rgba(0,0,0,.4);
+}
+.board-panel h3{font-size:14px;color:#f0c040;margin-bottom:8px;text-align:center;display:flex;align-items:center;justify-content:center;gap:6px;}
+.board-panel h3 .tag{font-size:10px;padding:1px 8px;border-radius:10px;font-weight:normal;}
+.tag-self{background:rgba(42,157,143,.2);color:#2a9d8f;}
+.tag-atk{background:rgba(230,57,70,.2);color:#e63946;}
+.grid{display:grid;grid-template-columns:repeat(10,1fr);gap:1px;background:#0a0a1a;padding:3px;border-radius:6px;width:100%;aspect-ratio:1/1;}
+.cell{
+  aspect-ratio:1/1;background:#1a1a3e;border-radius:2px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:clamp(7px,1.6vw,11px);font-weight:bold;color:#555;
+  cursor:default;user-select:none;position:relative;
+  transition:background .1s,transform .1s;
+}
+.cell.clickable{cursor:pointer;}
+.cell.clickable:hover{background:#252550;}
+.cell.clickable:active{transform:scale(.9);}
+.cell.plane-head{background:#e63946;color:#fff;border-radius:50%;box-shadow:0 0 8px rgba(230,57,70,.4);}
+.cell.plane-body{background:#457b9d;color:#fff;}
+.cell.plane-wing{background:#2a9d8f;color:#fff;}
+.cell.plane-tail{background:#e9c46a;color:#333;}
+.cell.mark-miss{background:#2a2a3a;color:#555;}
+.cell.mark-hit{background:#f4a261;color:#333;}
+.cell.mark-sunk-head{background:#e63946;color:#fff;border-radius:50%;animation:pulse .8s infinite;}
+.cell.sunk-ghost{background:rgba(230,57,70,.12);border:1px dashed #e63946;color:#e63946;}
+.cell.compare-head{outline:2px solid #f0c040;outline-offset:-2px;background:rgba(240,192,64,.35) !important;}
+.cell.compare-head::after{content:'头';position:absolute;font-size:10px;color:#1a1a2e;font-weight:bold;z-index:3;}
+.cell.compare-wing,.cell.compare-body,.cell.compare-tail{outline:1.5px dashed rgba(240,192,64,.9);outline-offset:-1.5px;}
+.cell.plane-selected{outline:3px solid #f0c040;outline-offset:-3px;box-shadow:0 0 12px rgba(240,192,64,.65);}
+.cell.move-target{background:#141430;}
+.cell.move-target:hover{background:#2a2a55;}
+.deploy-mask{
+  position:absolute;inset:12px;top:42px;
+  background:rgba(10,10,26,.92);border-radius:8px;
+  display:flex;align-items:center;justify-content:center;
+  color:#888;font-size:14px;text-align:center;line-height:1.8;z-index:5;
+}
+.board-info{margin-top:8px;font-size:12px;color:#888;text-align:center;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+.board-info b{color:#f0c040;}
+.action-bar{width:100%;max-width:900px;margin-top:14px;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.ctrl-row{
+  display:flex;gap:6px;flex-wrap:wrap;justify-content:center;align-items:center;
+  background:#16213e;border:1px solid #0f3460;border-radius:10px;
+  padding:8px 12px;font-size:12px;
+}
+.ctrl-row .label{color:#888;margin-right:4px;}
+button{
+  padding:9px 16px;border:none;border-radius:8px;font-size:14px;font-weight:bold;
+  cursor:pointer;transition:all .15s;min-height:42px;
+  background:#1a1a3e;color:#ccc;border:1px solid #0f3460;
+}
+button:hover{border-color:#457b9d;color:#457b9d;}
+button:active{transform:scale(.97);}
+button.primary{background:linear-gradient(135deg,#f0c040,#e6a020);color:#1a1a2e;border:none;}
+button.primary:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(240,192,64,.4);color:#1a1a2e;}
+button:disabled{opacity:.35;cursor:not-allowed;transform:none !important;}
+.dir-btn{padding:8px 12px;border:2px solid #0f3460;background:#1a1a3e;color:#ccc;border-radius:6px;cursor:pointer;font-size:13px;font-weight:bold;transition:all .15s;min-height:40px;}
+.dir-btn.active{border-color:#f0c040;color:#f0c040;background:rgba(240,192,64,.12);}
+.dir-btn:hover:not(.active){border-color:#457b9d;color:#457b9d;}
+.overlay{
+  position:fixed;inset:0;background:rgba(8,8,20,.98);z-index:200;
+  display:none;align-items:center;justify-content:center;flex-direction:column;
+  gap:18px;padding:24px;text-align:center;animation:fade .25s;
+}
+.overlay.show{display:flex;}
+@keyframes fade{from{opacity:0;}to{opacity:1;}}
+.overlay-icon{font-size:52px;}
+.overlay h2{font-size:clamp(20px,5.5vw,28px);color:#f0c040;}
+.overlay p{color:#ccc;font-size:clamp(13px,3.5vw,16px);line-height:1.7;max-width:380px;}
+.overlay button{padding:14px 44px;font-size:17px;}
+.toast{
+  position:fixed;bottom:30px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#16213e;border:1px solid #f0c040;color:#f0c040;
+  padding:10px 20px;border-radius:8px;font-size:14px;
+  opacity:0;pointer-events:none;transition:all .25s;z-index:300;
+  max-width:90vw;text-align:center;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.lobby{
+  width:100%;max-width:420px;margin:40px auto;
+  background:#16213e;border:1px solid #0f3460;border-radius:16px;
+  padding:32px 28px;text-align:center;display:none;
+}
+.lobby.show{display:block;}
+.lobby h2{color:#f0c040;font-size:22px;margin-bottom:24px;}
+.lobby .big-btn{
+  display:block;width:100%;padding:16px;margin:12px 0;
+  background:linear-gradient(135deg,#f0c040,#e6a020);color:#1a1a2e;
+  border:none;border-radius:10px;font-size:17px;font-weight:bold;cursor:pointer;
+  transition:all .2s;
+}
+.lobby .big-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(240,192,64,.4);}
+.lobby input{
+  width:100%;padding:14px 16px;font-size:18px;text-align:center;
+  background:#0d1117;border:2px solid #0f3460;color:#f0c040;
+  border-radius:10px;font-family:'Consolas',monospace;font-weight:bold;
+  letter-spacing:4px;text-transform:uppercase;outline:none;
+  margin-bottom:12px;
+}
+.lobby input:focus{border-color:#f0c040;}
+.lobby .hint{color:#888;font-size:13px;margin-top:16px;line-height:1.7;}
+.diff-title{color:#888;font-size:13px;margin-bottom:8px;}
+.diff-row{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.diff-btn{
+  width:100%;padding:11px 12px;border-radius:9px;cursor:pointer;
+  background:#0d1117;border:2px solid #0f3460;color:#ccc;
+  font-size:14px;font-weight:bold;transition:all .15s;text-align:center;
+}
+.diff-btn:hover:not(.active){border-color:#457b9d;color:#457b9d;}
+.diff-btn.active{border-color:#f0c040;color:#f0c040;background:rgba(240,192,64,.12);box-shadow:0 0 14px rgba(240,192,64,.15);}
+.diff-btn .diff-note{display:block;font-size:11px;font-weight:normal;color:#666;margin-top:2px;}
+.diff-btn.active .diff-note{color:#bfa14a;}
+.waiting{
+  width:100%;max-width:420px;margin:40px auto;
+  background:#16213e;border:1px solid #0f3460;border-radius:16px;
+  padding:32px 28px;text-align:center;display:none;
+}
+.waiting.show{display:block;}
+.waiting h2{color:#2a9d8f;font-size:20px;margin-bottom:20px;}
+.room-code{
+  font-size:42px;font-weight:bold;color:#f0c040;font-family:'Consolas',monospace;
+  letter-spacing:8px;background:#0d1117;padding:20px;border-radius:12px;
+  border:2px dashed #f0c040;margin:16px 0;
+}
+.waiting .hint{color:#888;font-size:13px;line-height:1.7;}
+.waiting .pulse{display:inline-block;animation:pulse 1.5s infinite;color:#2a9d8f;margin-top:16px;font-size:14px;}
+@media (max-width:800px){
+  .boards{flex-direction:column;align-items:center;}
+  .board-panel{width:min(92vw,420px);min-width:0;}
+  .ctrl-row{padding:6px 10px;font-size:11px;}
+  button{padding:8px 12px;font-size:13px;min-height:40px;}
+  .dir-btn{padding:7px 9px;font-size:12px;min-height:38px;}
+}
+</style>
+</head>
+<body>
+
+<!-- 大厅 -->
+<div class="lobby show" id="lobby">
+  <h2>✈️ 打飞机 · 联机对战</h2>
+
+  <div class="diff-title">游戏难度（房主选择，决定双方飞机数量）</div>
+  <div class="diff-row" id="diffRow">
+    <button class="diff-btn active" data-count="1" onclick="setDiff(1)">✈️ 1 架飞机<span class="diff-note">简单 · 一炮定胜负</span></button>
+    <button class="diff-btn" data-count="4" onclick="setDiff(4)">✈️✈️ 4 架飞机<span class="diff-note">进阶 · 需要点耐心</span></button>
+    <button class="diff-btn" data-count="5" onclick="setDiff(5)">✈️✈️✈️ 5 架飞机<span class="diff-note">困难 · 棋盘塞满</span></button>
+  </div>
+
+  <button class="big-btn" onclick="createRoom()">🎮 创建房间</button>
+  <div style="color:#666;font-size:12px;margin:16px 0;">— 或者 —</div>
+  <input type="text" id="joinInput" placeholder="输入房间码" maxlength="6" autocomplete="off">
+  <button class="big-btn" style="background:linear-gradient(135deg,#2a9d8f,#21867a);color:#fff;" onclick="joinRoom()">🚪 加入房间</button>
+  <div class="hint" id="lobbyHint">创建房间后，把房间码告诉朋友，他输入即可加入。难度由创建者选定，加入者跟随。</div>
+</div>
+
+<!-- 等待对手 -->
+<div class="waiting" id="waiting">
+  <h2>⏳ 等待对手加入...</h2>
+  <div>房间码：</div>
+  <div class="room-code" id="roomCode">------</div>
+  <div class="hint" id="waitingDiff" style="color:#f0c040;margin-bottom:8px;"></div>
+  <div class="hint">把上面的房间码告诉朋友，让他输入加入。</div>
+  <div class="pulse">● 等待中...</div>
+  <button class="big-btn" style="margin-top:18px;background:linear-gradient(135deg,#6b7280,#4b5563);color:#fff;" onclick="cancelRoom()">✖ 取消房间</button>
+</div>
+
+<!-- 游戏主界面 -->
+<div id="gameScreen" style="display:none;width:100%;max-width:900px;">
+  <div class="status-bar" style="margin-bottom:12px;">
+    <span class="status-item">阶段<b id="phaseText">部署</b></span>
+    <span class="status-item">当前<b id="currentText">-</b></span>
+    <span class="status-item">你<b id="seatText">-</b></span>
+    <span class="status-timer" id="timerText">⏱ --</span>
+  </div>
+  <div class="boards">
+    <section class="board-panel" id="selfPanel">
+      <h3>🛡️ 我的飞机 <span class="tag tag-self">被攻击</span></h3>
+      <div class="grid" id="selfGrid"></div>
+      <div class="board-info" id="selfInfo"></div>
+    </section>
+    <section class="board-panel" id="atkPanel">
+      <h3>🎯 攻击对方 <span class="tag tag-atk">攻击记录</span></h3>
+      <div class="grid" id="atkGrid"></div>
+      <div class="board-info" id="atkInfo"></div>
+    </section>
+  </div>
+  <div class="action-bar" id="actionBar"></div>
+</div>
+
+<div class="overlay" id="overlay"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+// 常量
+// ============================================================
+const N = 10;
+const SHAPE = [
+  { dx: 0, dy: 0, part: 'head' },
+  { dx: -2, dy: 1, part: 'wing' },
+  { dx: -1, dy: 1, part: 'wing' },
+  { dx: 0, dy: 1, part: 'body' },
+  { dx: 1, dy: 1, part: 'wing' },
+  { dx: 2, dy: 1, part: 'wing' },
+  { dx: 0, dy: 2, part: 'body' },
+  { dx: -1, dy: 3, part: 'tail' },
+  { dx: 0, dy: 3, part: 'tail' },
+  { dx: 1, dy: 3, part: 'tail' },
+];
+
+// ============================================================
+// 全局状态
+// ============================================================
+let view = null;                // 服务器发来的最新视图
+let localPlanes = [];           // 本地部署中的飞机（提交前）
+let deployDir = 'up';           // 当前部署朝向
+let submitted = false;          // 是否已提交 ready
+let diffCount = 1;              // 房主选定的难度 = 双方飞机数量（1 / 4 / 5）
+let selectedIdx = -1;           // 部署阶段当前选中（待移动）的飞机下标
+let compare = { show: false, hx: 4, hy: 4, dir: 'up' };
+let prevView = null;            // 上一次视图，用于检测变化
+let hasShownHandoff = false;    // 交接遮罩是否已显示
+
+// ============================================================
+// 网络层
+// ============================================================
+const Net = {
+  ws: null,
+  roomId: null, seat: null, token: null,
+  handlers: {},
+
+  connect() {
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    this.ws = new WebSocket(proto + location.host);
+
+    this.ws.onopen = () => {
+      console.log('[Net] connected');
+      // 尝试重连：会话存在 sessionStorage（每个窗口/标签独立），
+      // 这样同一浏览器开两个窗口各玩各的，不会互相抢座位、也不会来回弹“对手重连”
+      const saved = sessionStorage.getItem('plane_session');
+      if (saved) {
+        try {
+          const s = JSON.parse(saved);
+          this.send({ type: 'reconnect', roomId: s.roomId, seat: s.seat, token: s.token });
+        } catch {}
+      }
+    };
+
+    this.ws.onmessage = e => {
+      let msg;
+      try { msg = JSON.parse(e.data); } catch { return; }
+      this.onMessage(msg);
+    };
+
+    this.ws.onclose = e => {
+      console.log('[Net] disconnected code=' + e.code + ' reason=' + (e.reason || '-'));
+      setTimeout(() => this.connect(), 3000);
+    };
+  },
+
+  send(obj) {
+    if (this.ws && this.ws.readyState === 1) {
+      this.ws.send(JSON.stringify(obj));
+    }
+  },
+
+  onMessage(msg) {
+    switch (msg.type) {
+      case 'room_created':
+        this.roomId = msg.roomId; this.seat = msg.seat; this.token = msg.token;
+        if (msg.planeCount) diffCount = msg.planeCount;
+        saveSession();
+        document.getElementById('lobby').classList.remove('show');
+        document.getElementById('waiting').classList.add('show');
+        document.getElementById('roomCode').textContent = msg.roomId;
+        document.getElementById('waitingDiff').textContent = '难度：每人 ' + diffCount + ' 架飞机';
+        break;
+      case 'room_joined':
+        this.roomId = msg.roomId; this.seat = msg.seat; this.token = msg.token;
+        saveSession();
+        document.getElementById('lobby').classList.remove('show');
+        document.getElementById('waiting').classList.remove('show');
+        enterGameScreen();
+        break;
+      case 'opponent_joined':
+        toast('对手已加入，开始部署！');
+        document.getElementById('waiting').classList.remove('show');
+        enterGameScreen();
+        break;
+      case 'reconnected':
+        this.roomId = msg.roomId; this.seat = msg.seat;
+        document.getElementById('lobby').classList.remove('show');
+        document.getElementById('waiting').classList.remove('show');
+        // 重连不清空已摆好的飞机，只在真正开新局时重置
+        enterGameScreen(false);
+        toast('重连成功');
+        break;
+      case 'state':
+        handleState(msg.view);
+        break;
+      case 'shot_result':
+        // 单独的结果消息，用于显示细节（可选）
+        break;
+      case 'turn_timeout':
+        toast('⏰ 玩家' + msg.prev + ' 超时，轮到玩家' + msg.next);
+        break;
+      case 'deploy_timeout':
+        toast('⏰ 部署超时，未准备的玩家已自动随机布局');
+        break;
+      case 'deploy_overdue':
+        toast('⏰ 部署时间到，请继续手动放好飞机后点“准备完成”');
+        break;
+      case 'battle_start':
+        toast('⚔️ 对战开始！玩家' + msg.current + '（房主）先手');
+        break;
+      case 'game_over':
+        showGameOver(msg.winner, msg.reason);
+        break;
+      case 'opponent_disconnected':
+        toast('⚠️ 对手断线了，等待重连...');
+        break;
+      case 'opponent_reconnected':
+        toast('✅ 对手已重连');
+        break;
+      case 'left_room':
+        // 自己主动退出/取消房间：清会话，回大厅
+        this.roomId = null; this.seat = null; this.token = null;
+        sessionStorage.removeItem('plane_session');
+        document.getElementById('waiting').classList.remove('show');
+        document.getElementById('gameScreen').style.display = 'none';
+        document.getElementById('lobby').classList.add('show');
+        break;
+      case 'room_closed':
+        // 房主取消了房间，加入者退回大厅
+        toast('⚠️ ' + (msg.reason === 'host_left' ? '房主已取消房间' : '房间已关闭'));
+        this.roomId = null; this.seat = null; this.token = null;
+        sessionStorage.removeItem('plane_session');
+        document.getElementById('waiting').classList.remove('show');
+        document.getElementById('gameScreen').style.display = 'none';
+        document.getElementById('lobby').classList.add('show');
+        break;
+      case 'reject':
+        toast('❌ 操作被拒绝：' + reasonLabel(msg.reason));
+        break;
+      case 'error':
+        toast('❌ ' + reasonLabel(msg.reason));
+        if (msg.reason === 'room_not_found') {
+          document.getElementById('lobby').classList.add('show');
+          document.getElementById('waiting').classList.remove('show');
+          document.getElementById('gameScreen').style.display = 'none';
+        }
+        break;
+      case 'pong':
+        break;
+    }
+  },
+};
+
+function saveSession() {
+  sessionStorage.setItem('plane_session', JSON.stringify({
+    roomId: Net.roomId, seat: Net.seat, token: Net.token,
+  }));
+}
+
+function reasonLabel(r) {
+  return {
+    room_not_found: '房间不存在',
+    room_full: '房间已满',
+    already_in_room: '你已在房间中',
+    not_in_battle: '还没到对战阶段',
+    not_your_turn: '不是你的回合',
+    already_shot: '这格已经打过了',
+    out_of_bounds: '坐标越界',
+    invalid_plane_count: '飞机数量不对',
+    invalid_plane_shape: '飞机形状不对',
+    invalid_head: '机头数量不对',
+    overlap: '飞机重叠了',
+    not_in_deploy: '不在部署阶段',
+    auth_failed: '身份验证失败',
+  }[r] || r;
+}
+
+// ============================================================
+// 屏幕切换
+// ============================================================
+function enterGameScreen(resetLayout) {
+  document.getElementById('gameScreen').style.display = '';
+  if (resetLayout === false) return;   // 断线重连：保留玩家已经摆好的飞机
+  submitted = false;
+  localPlanes = [];
+  deployDir = 'up';
+  selectedIdx = -1;
+}
+
+// ============================================================
+// 状态处理
+// ============================================================
+function handleState(newView) {
+  prevView = view;
+  view = newView;
+
+  // 部署阶段：首次进入时清空本地
+  if (view.phase === 'deploy' && view.self.ready === false && !submitted) {
+    // 保持本地状态
+  }
+
+  render();
+}
+
+// ============================================================
+// 渲染
+// ============================================================
+function render() {
+  if (!view) return;
+
+  // 房主建房后：对手还没进来，就停在“等待对手”页把房间码亮出来，
+  // 不要被服务端随后的 state 广播顶进棋盘页（否则房间码一闪而过）。
+  if (view.phase === 'deploy' && !view.oppJoined) {
+    document.getElementById('gameScreen').style.display = 'none';
+    document.getElementById('lobby').classList.remove('show');
+    document.getElementById('waiting').classList.add('show');
+    if (Net.roomId) document.getElementById('roomCode').textContent = Net.roomId;
+    return;
+  }
+
+  document.getElementById('gameScreen').style.display = '';
+  document.getElementById('lobby').classList.remove('show');
+  document.getElementById('waiting').classList.remove('show');
+
+  renderStatusBar();
+  if (view.phase === 'deploy') {
+    renderSelfGridDeploy();
+    renderAtkGridMasked();
+    renderDeployControls();
+  } else if (view.phase === 'battle' || view.phase === 'ended') {
+    renderSelfGrid(view);
+    renderAtkGrid(view);
+    renderBattleControls();
+  }
+}
+
+function renderStatusBar() {
+  const phaseNames = { deploy: '部署', battle: '对战', ended: '结束' };
+  document.getElementById('phaseText').textContent = phaseNames[view.phase] || view.phase;
+  let cur = '-';
+  if (view.phase === 'deploy') {
+    cur = view.self.ready ? (view.opp.ready ? '开战在即' : '等待对手') : '你部署中';
+  } else if (view.phase === 'battle') {
+    cur = view.current === view.seat ? '你的回合' : '对手回合';
+  } else if (view.phase === 'ended') {
+    cur = view.winner === view.seat ? '你赢了' : '你输了';
+  }
+  document.getElementById('currentText').textContent = cur;
+  document.getElementById('seatText').textContent = view.seat === 1 ? '玩家1（房主）' : '玩家2';
+
+  const el = document.getElementById('timerText');
+  if (view.phase === 'deploy') {
+    const left = view.deployLeft;
+    if (left <= 0) {
+      el.textContent = '⏰ 超时·仍可布阵';
+      el.className = 'status-timer danger';
+    } else {
+      el.textContent = '⏱ ' + left + ' 秒';
+      el.className = 'status-timer' + (left <= 10 ? ' danger' : left <= 20 ? ' warn' : '');
+    }
+  } else if (view.phase === 'battle') {
+    const left = view.turnLeft;
+    el.textContent = '⏱ ' + left + ' 秒';
+    el.className = 'status-timer' + (left <= 10 ? ' danger' : left <= 20 ? ' warn' : '');
+  } else {
+    el.textContent = '🏁 结束';
+    el.className = 'status-timer';
+  }
+}
+
+// ----- 部署阶段：左盘显示本地部署 -----
+function renderSelfGridDeploy() {
+  const grid = document.getElementById('selfGrid');
+  grid.innerHTML = '';
+
+  // 用本地 localPlanes 或已提交的 view.self.planes
+  const planes = view.self.ready ? view.self.planes : localPlanes;
+  const planeMap = new Map();
+  const ownerMap = new Map();   // 格子 -> 飞机下标，用于“点飞机选中并移动”
+  for (let i = 0; i < planes.length; i++) {
+    for (const c of planes[i].cells) {
+      planeMap.set(c.x + ',' + c.y, c.part);
+      ownerMap.set(c.x + ',' + c.y, i);
+    }
+  }
+
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const k = x + ',' + y;
+    const part = planeMap.get(k);
+
+    if (part) {
+      cell.classList.add('plane-' + part);
+      cell.textContent = part === 'head' ? '头' : part === 'body' ? '躯' : part === 'wing' ? '翼' : '尾';
+      if (!view.self.ready) {
+        const idx = ownerMap.get(k);
+        if (idx === selectedIdx) cell.classList.add('plane-selected');
+        cell.classList.add('clickable');
+        cell.title = '点这台飞机可拖动改位置';
+        cell.onclick = () => selectPlane(selectedIdx === idx ? -1 : idx);
+      }
+    } else {
+      cell.textContent = coordName(x, y);
+      if (!view.self.ready) {
+        cell.classList.add('clickable');
+        // 已选中某架飞机时，点空格 = 把这架飞机的机头移到这里
+        cell.onclick = () => (selectedIdx >= 0 ? tryMovePlane(x, y) : tryPlace(x, y));
+        if (selectedIdx >= 0) cell.classList.add('move-target');
+      }
+    }
+    grid.appendChild(cell);
+  }
+
+  const info = document.getElementById('selfInfo');
+  if (view.self.ready) {
+    info.innerHTML = `<span>✅ 已提交布局，等待对手...</span>`;
+  } else if (selectedIdx >= 0) {
+    info.innerHTML = `<span>已选中第 <b>${selectedIdx + 1}</b> 架：点棋盘的格子即可移动，点方向键可旋转</span>`;
+  } else {
+    info.innerHTML = `<span>已放置：<b>${localPlanes.length} / ${view.planeCount}</b> 架</span>`;
+  }
+}
+
+// ----- 对战阶段：左盘显示自己的飞机 + 被攻击 -----
+function renderSelfGrid(v) {
+  const grid = document.getElementById('selfGrid');
+  grid.innerHTML = '';
+
+  const planeMap = new Map();
+  const sunkMap = new Map();
+  for (const pl of v.self.planes) {
+    for (const c of pl.cells) {
+      planeMap.set(c.x + ',' + c.y, c.part);
+      if (pl.sunk) sunkMap.set(c.x + ',' + c.y, c.part);
+    }
+  }
+
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const k = x + ',' + y;
+    const part = planeMap.get(k);
+    const sunk = sunkMap.has(k);
+    const incoming = v.self.incomingShots[k];
+
+    if (sunk) {
+      if (part === 'head') {
+        cell.classList.add('mark-sunk-head');
+        cell.textContent = '💥';
+      } else if (incoming === 'hit' || incoming === 'sunk') {
+        cell.classList.add('mark-hit');
+        cell.textContent = '●';
+      } else {
+        cell.classList.add('sunk-ghost');
+        cell.textContent = '✈';
+      }
+    } else if (part) {
+      cell.classList.add('plane-' + part);
+      if (incoming === 'hit') {
+        cell.classList.add('mark-hit');
+        cell.textContent = '●';
+      } else {
+        cell.textContent = part === 'head' ? '头' : part === 'body' ? '躯' : part === 'wing' ? '翼' : '尾';
+      }
+    } else if (incoming === 'miss') {
+      cell.classList.add('mark-miss');
+      cell.textContent = '·';
+    } else {
+      cell.textContent = coordName(x, y);
+    }
+    grid.appendChild(cell);
+  }
+
+  const info = document.getElementById('selfInfo');
+  const hitsCount = Object.values(v.self.incomingShots).filter(s => s === 'hit' || s === 'sunk').length;
+  const sunkCount = v.self.planes.filter(p => p.sunk).length;
+  info.innerHTML = `
+    <span>剩余：<b>${v.planeCount - sunkCount} / ${v.planeCount}</b></span>
+    <span>被命中：<b>${hitsCount}</b> 格</span>
+  `;
+}
+
+// ----- 对战阶段：右盘显示攻击记录 -----
+function renderAtkGrid(v) {
+  const panel = document.getElementById('atkPanel');
+  const mask = panel.querySelector('.deploy-mask');
+  if (mask) mask.style.display = 'none';
+
+  const grid = document.getElementById('atkGrid');
+  grid.innerHTML = '';
+
+  const sunkMap = new Map();
+  for (const pl of v.opp.sunkPlanes) {
+    for (const c of pl.cells) sunkMap.set(c.x + ',' + c.y, c.part);
+  }
+
+  const compareMap = new Map();
+  if (compare.show) {
+    const cells = cellsFor(compare.hx, compare.hy, compare.dir);
+    if (cells) cells.forEach(c => compareMap.set(c.x + ',' + c.y, c.part));
+  }
+
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    const k = x + ',' + y;
+    const outgoing = v.opp.outgoingShots[k];
+    const part = sunkMap.get(k);
+
+    if (part) {
+      if (part === 'head') {
+        cell.classList.add('mark-sunk-head');
+        cell.textContent = '💥';
+      } else if (outgoing === 'hit' || outgoing === 'sunk') {
+        cell.classList.add('mark-hit');
+        cell.textContent = '●';
+      } else {
+        cell.classList.add('sunk-ghost');
+        cell.textContent = '✈';
+      }
+    } else if (outgoing === 'miss') {
+      cell.classList.add('mark-miss');
+      cell.textContent = '·';
+    } else if (outgoing === 'hit') {
+      cell.classList.add('mark-hit');
+      cell.textContent = '●';
+    } else if (outgoing === 'sunk') {
+      cell.classList.add('mark-sunk-head');
+      cell.textContent = '💥';
+    } else {
+      cell.textContent = coordName(x, y);
+      if (v.phase === 'battle' && v.current === v.seat) {
+        cell.classList.add('clickable');
+        cell.onclick = () => fire(x, y);
+      }
+    }
+
+    const cp = compareMap.get(k);
+    if (cp) cell.classList.add('compare-' + cp);
+
+    grid.appendChild(cell);
+  }
+
+  const info = document.getElementById('atkInfo');
+  const hits = Object.values(v.opp.outgoingShots).filter(s => s === 'hit' || s === 'sunk').length;
+  const sunk = v.opp.sunkPlanes.length;
+  info.innerHTML = `
+    <span>已打：<b>${Object.keys(v.opp.outgoingShots).length}</b> 格</span>
+    <span>命中：<b>${hits}</b></span>
+    <span>击沉：<b>${sunk} / ${v.planeCount}</b></span>
+  `;
+}
+
+function renderAtkGridMasked() {
+  const panel = document.getElementById('atkPanel');
+  const grid = document.getElementById('atkGrid');
+  grid.innerHTML = '';
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const cell = document.createElement('div');
+    cell.className = 'cell';
+    cell.textContent = coordName(x, y);
+    grid.appendChild(cell);
+  }
+  let mask = panel.querySelector('.deploy-mask');
+  if (!mask) {
+    mask = document.createElement('div');
+    mask.className = 'deploy-mask';
+    mask.innerHTML = '<div>🔒<br>双方准备完成后<br>才能攻击对方</div>';
+    panel.appendChild(mask);
+  }
+  mask.style.display = 'flex';
+  const info = document.getElementById('atkInfo');
+  info.innerHTML = '<span style="color:#555;">等待双方准备完成...</span>';
+}
+
+// ----- 控制区 -----
+function renderDeployControls() {
+  const bar = document.getElementById('actionBar');
+  if (view.self.ready) {
+    bar.innerHTML = `
+      <div class="ctrl-row" style="color:#2a9d8f;font-size:14px;">
+        ✅ 布局已提交，等待对手准备完成...
+        ${view.opp.ready ? '（对手已就绪）' : ''}
+      </div>
+    `;
+    return;
+  }
+  const dirOfSel = selectedIdx >= 0 && localPlanes[selectedIdx] ? localPlanes[selectedIdx].dir : deployDir;
+  bar.innerHTML = `
+    <div class="ctrl-row">
+      <span class="label">${selectedIdx >= 0 ? '旋转选中的第 ' + (selectedIdx + 1) + ' 架：' : '新飞机朝向：'}</span>
+      <button class="dir-btn ${dirOfSel==='up'?'active':''}" onclick="setDir('up')">⬆ 上</button>
+      <button class="dir-btn ${dirOfSel==='down'?'active':''}" onclick="setDir('down')">⬇ 下</button>
+      <button class="dir-btn ${dirOfSel==='left'?'active':''}" onclick="setDir('left')">⬅ 左</button>
+      <button class="dir-btn ${dirOfSel==='right'?'active':''}" onclick="setDir('right')">➡ 右</button>
+    </div>
+    <div class="ctrl-row" style="color:#888;font-size:12px;">
+      ${selectedIdx >= 0
+        ? '💡 已选中一架：点棋盘上的空格把它移过去，或直接点方向旋转'
+        : '💡 点空格放飞机；点已放好的飞机可以选中后移动'}
+    </div>
+    <div class="ctrl-row">
+      <button onclick="randomPlace()">🎲 随机布阵</button>
+      <button onclick="undoPlace()">↩️ 撤销</button>
+      <button class="primary" onclick="submitReady()">✅ 准备完成（${localPlanes.length}/${view.planeCount}）</button>
+    </div>
+  `;
+}
+
+function renderBattleControls() {
+  const bar = document.getElementById('actionBar');
+  bar.innerHTML = `
+    <div class="ctrl-row">
+      <label style="display:flex;align-items:center;gap:6px;color:#f0c040;cursor:pointer;">
+        <input type="checkbox" id="cmpToggle" ${compare.show?'checked':''} onchange="toggleCompare()">
+        显示比对框
+      </label>
+      <button class="dir-btn" onclick="rotateCompare()">↻ 旋转</button>
+      <button class="dir-btn" onclick="moveCompare(-1,0)">←</button>
+      <button class="dir-btn" onclick="moveCompare(0,-1)">↑</button>
+      <button class="dir-btn" onclick="moveCompare(0,1)">↓</button>
+      <button class="dir-btn" onclick="moveCompare(1,0)">→</button>
+    </div>
+    <div class="ctrl-row" style="color:#888;font-size:12px;">
+      ${view.current === view.seat ? '💡 轮到你了，点击右侧棋盘未打过的格子开炮' : '⏳ 等待对手行动...'}
+    </div>
+  `;
+}
+
+// ============================================================
+// 部署操作
+// ============================================================
+function cellsFor(hx, hy, dir) {
+  const out = [];
+  for (const s of SHAPE) {
+    let rx, ry;
+    if (dir === 'up') { rx = s.dx; ry = s.dy; }
+    else if (dir === 'down') { rx = s.dx; ry = -s.dy; }
+    else if (dir === 'left') { rx = -s.dy; ry = s.dx; }
+    else { rx = s.dy; ry = -s.dx; }
+    const ax = hx + rx, ay = hy + ry;
+    if (ax < 0 || ax >= N || ay < 0 || ay >= N) return null;
+    out.push({ x: ax, y: ay, part: s.part });
+  }
+  return out;
+}
+
+function tryPlace(x, y) {
+  if (!view || view.phase !== 'deploy' || view.self.ready) return;
+  if (localPlanes.length >= view.planeCount) { toast('已放满 ' + view.planeCount + ' 架'); return; }
+
+  const cells = cellsFor(x, y, deployDir);
+  if (!cells) { toast('❌ 越界，换个位置或朝向'); return; }
+
+  for (const pl of localPlanes) {
+    for (const c1 of pl.cells) {
+      for (const c2 of cells) {
+        if (c1.x === c2.x && c1.y === c2.y) { toast('❌ 和已有飞机重叠'); return; }
+      }
+    }
+  }
+
+  localPlanes.push({ cells, headKey: x + ',' + y, dir: deployDir });
+  render();
+}
+
+// 选中一架已放好的飞机（再点一次取消选中）
+function selectPlane(idx) {
+  if (!view || view.phase !== 'deploy' || view.self.ready) return;
+  selectedIdx = idx;
+  render();
+  if (idx >= 0) toast('已选中第 ' + (idx + 1) + ' 架：点棋盘格子移动机头，方向键可旋转');
+}
+
+// 把选中的飞机整体搬到新机头位置（朝向不变）
+function tryMovePlane(x, y) {
+  if (!view || view.phase !== 'deploy' || view.self.ready || selectedIdx < 0) return;
+  const target = localPlanes[selectedIdx];
+  if (!target) return;
+
+  const cells = cellsFor(x, y, target.dir);
+  if (!cells) { toast('❌ 移到那里会越界，换个位置'); return; }
+  for (let i = 0; i < localPlanes.length; i++) {
+    if (i === selectedIdx) continue;
+    for (const c1 of localPlanes[i].cells) {
+      for (const c2 of cells) {
+        if (c1.x === c2.x && c1.y === c2.y) { toast('❌ 和目标位置上的飞机重叠'); return; }
+      }
+    }
+  }
+
+  localPlanes[selectedIdx] = { cells, headKey: x + ',' + y, dir: target.dir };
+  selectedIdx = -1;
+  render();
+  toast('✅ 飞机已移动');
+}
+
+// 旋转选中的飞机（机头位置不动）
+function rotateSelected(dir) {
+  if (!view || view.phase !== 'deploy' || view.self.ready || selectedIdx < 0) return false;
+  const target = localPlanes[selectedIdx];
+  if (!target) return false;
+  const hx = Number(target.headKey.split(',')[0]);
+  const hy = Number(target.headKey.split(',')[1]);
+  const cells = cellsFor(hx, hy, dir);
+  if (!cells) { toast('❌ 这个朝向会越界'); return true; }
+  for (let i = 0; i < localPlanes.length; i++) {
+    if (i === selectedIdx) continue;
+    for (const c1 of localPlanes[i].cells) {
+      for (const c2 of cells) {
+        if (c1.x === c2.x && c1.y === c2.y) { toast('❌ 旋转后会和别的飞机重叠'); return true; }
+      }
+    }
+  }
+  localPlanes[selectedIdx] = { cells, headKey: target.headKey, dir };
+  render();
+  return true;
+}
+
+// 玩家主动点的“随机布阵”：仅供手放太麻烦时用一次，必须一次铺满所选架数。
+// 5 架时单轮随机铺成功率只有约 24%，所以要整轮重来。
+function randomPlace() {
+  if (!view || view.self.ready) return;
+  const need = view.planeCount;
+  selectedIdx = -1;
+  localPlanes = [];
+  for (let attempt = 0; attempt < 500; attempt++) {
+    localPlanes = [];
+    let tries = 0;
+    while (localPlanes.length < need && tries < 400) {
+      tries++;
+      const hx = Math.floor(Math.random() * N);
+      const hy = Math.floor(Math.random() * N);
+      const dir = ['up', 'down', 'left', 'right'][Math.floor(Math.random() * 4)];
+      const cells = cellsFor(hx, hy, dir);
+      if (!cells) continue;
+      let overlap = false;
+      for (const pl of localPlanes) {
+        for (const c1 of pl.cells) {
+          for (const c2 of cells) {
+            if (c1.x === c2.x && c1.y === c2.y) { overlap = true; break; }
+          }
+          if (overlap) break;
+        }
+        if (overlap) break;
+      }
+      if (!overlap) localPlanes.push({ cells, headKey: hx + ',' + hy, dir });
+    }
+    if (localPlanes.length === need) break;
+  }
+  render();
+}
+
+function undoPlace() {
+  if (!view || view.self.ready) return;
+  selectedIdx = -1;
+  if (localPlanes.length > 0) { localPlanes.pop(); render(); }
+}
+
+function submitReady() {
+  if (!view || view.self.ready) return;
+  if (localPlanes.length < view.planeCount) {
+    toast('请先放满 ' + view.planeCount + ' 架飞机');
+    return;
+  }
+  submitted = true;
+  Net.send({ type: 'ready', planes: localPlanes });
+}
+
+function setDir(d) {
+  // 已经选中某架飞机时，方向键=旋转这架飞机（机头位置不动）；否则=设定新飞机的朝向
+  if (selectedIdx >= 0 && rotateSelected(d)) return;
+  deployDir = d;
+  render();
+}
+
+// ============================================================
+// 对战操作
+// ============================================================
+function fire(x, y) {
+  if (!view || view.phase !== 'battle') return;
+  if (view.current !== view.seat) return;
+  if (view.opp.outgoingShots[x + ',' + y]) return;
+  Net.send({ type: 'shoot', x, y });
+}
+
+function toggleCompare() {
+  compare.show = document.getElementById('cmpToggle').checked;
+  render();
+}
+function rotateCompare() {
+  const dirs = ['up', 'right', 'down', 'left'];
+  compare.dir = dirs[(dirs.indexOf(compare.dir) + 1) % 4];
+  render();
+}
+function moveCompare(dx, dy) {
+  compare.hx = Math.max(0, Math.min(N - 1, compare.hx + dx));
+  compare.hy = Math.max(0, Math.min(N - 1, compare.hy + dy));
+  render();
+}
+
+// ============================================================
+// 大厅操作
+// ============================================================
+function setDiff(n) {
+  diffCount = n;
+  document.querySelectorAll('#diffRow .diff-btn').forEach(b => {
+    b.classList.toggle('active', Number(b.dataset.count) === n);
+  });
+  toast('难度已设为每人 ' + n + ' 架飞机');
+}
+function createRoom() {
+  Net.send({ type: 'create_room', planeCount: diffCount });
+}
+// 取消/关闭房间：服务端删房并通知对手，客户端回大厅
+function cancelRoom() {
+  if (!Net.roomId) {
+    document.getElementById('waiting').classList.remove('show');
+    document.getElementById('lobby').classList.add('show');
+    return;
+  }
+  Net.send({ type: 'leave_room' });
+}
+function joinRoom() {
+  const code = document.getElementById('joinInput').value.trim().toUpperCase();
+  if (!code || code.length !== 6) { toast('请输入 6 位房间码'); return; }
+  Net.send({ type: 'join_room', roomId: code });
+}
+
+// ============================================================
+// 游戏结束
+// ============================================================
+function showGameOver(winner, reason) {
+  const win = winner === view.seat;
+  const reasonText = {
+    all_sunk: '击沉了对方全部飞机',
+    disconnect: '对手断线',
+    opponent_left: '对手退出了房间',
+  }[reason] || '';
+  const ov = document.getElementById('overlay');
+  ov.innerHTML = `
+    <div class="overlay-icon">${win ? '🏆' : '😔'}</div>
+    <h2>${win ? '你赢了！' : '你输了...'}</h2>
+    <p>${reasonText}</p>
+    <button class="primary" onclick="restart()">🔄 再来一局</button>
+  `;
+  ov.classList.add('show');
+}
+
+function restart() {
+  sessionStorage.removeItem('plane_session');
+  location.reload();
+}
+
+// ============================================================
+// 工具
+// ============================================================
+function coordName(x, y) { return String.fromCharCode(65 + x) + (y + 1); }
+function toast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// 启动
+// ============================================================
+Net.connect();
+</script>
+
+</body>
+</html>
